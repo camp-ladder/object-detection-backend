@@ -8,6 +8,7 @@ from flask import Flask, abort, jsonify, request, Response
 from flask_cors import CORS  # flask 연결
 from pymongo import MongoClient  # DB
 import jwt
+import requests
 
 SECRET_KEY = 'ladder'
 
@@ -171,6 +172,29 @@ def get_user_info(user):
     print(result)
 
     return jsonify({'message': 'success', 'email': result['email']})
+
+
+@app.route('/oauth')
+def oauth():
+    code = str(request.args.get('code'))
+    # XXXXXXXXX 자리에 RESET API KEY값을 사용
+    resToken = getAccessToken("f2c5ac6a881bc9cd902ca84b7ed420b5", str(code))
+
+    return jsonify({'message': 'code=' + str(code) + '<br/>response for token=' + str(resToken)})
+
+
+def getAccessToken(clientId, code):  # 세션 코드값 code 를 이용해서 ACESS TOKEN과 REFRESH TOKEN을 발급 받음
+    url = "https://kauth.kakao.com/oauth/token"
+    payload = "grant_type=authorization_code"
+    payload += "&client_id=" + clientId
+    payload += "&redirect_url=http%3A%2F%2Flocalhost%3A5005%2Foauth&code=" + code
+    headers = {
+        'Content-Type': "application/x-www-form-urlencoded",
+        'Cache-Control': "no-cache",
+    }
+    reponse = requests.request("POST", url, data=payload, headers=headers)
+    access_token = json.loads(((reponse.text).encode('utf-8')))
+    return access_token
 
 
 if __name__ == '__main__':
