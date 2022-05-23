@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
+from email import message
 from functools import wraps
 import hashlib
 import json
 from unittest import result
+from urllib import response
 from bson import ObjectId
 from flask import Flask, abort, jsonify, request, Response
 from flask_cors import CORS  # flask 연결
@@ -173,14 +175,23 @@ def get_user_info(user):
 
     return jsonify({'message': 'success', 'email': result['email']})
 
+########################################################################
+########################################################################
+########################################################################
+# kakao_login
+########################################################################
+########################################################################
+########################################################################
 
-@app.route('/oauth')
+
+@app.route('/oauth',  methods=["GET"])
 def oauth():
     code = str(request.args.get('code'))
     # XXXXXXXXX 자리에 RESET API KEY값을 사용
-    resToken = getAccessToken("f2c5ac6a881bc9cd902ca84b7ed420b5", str(code))
-
-    return jsonify({'message': 'code=' + str(code) + '<br/>response for token=' + str(resToken)})
+    resToken = getAccessToken("0e70ecca261b084cdb1cb36a41645ec2", str(code))
+    profile = kakaoprofile(
+        "Jp1WYstBEgIxUKv_4a4t5uX-OpzWGXp8x9E1Mf9eCj11GQAAAYDvK8jK")
+    return jsonify({'message': 'code=' + str(code) + '<br/>response for token=' + str(resToken) + '<br/>profile=' + str(profile)})
 
 
 def getAccessToken(clientId, code):  # 세션 코드값 code 를 이용해서 ACESS TOKEN과 REFRESH TOKEN을 발급 받음
@@ -194,6 +205,26 @@ def getAccessToken(clientId, code):  # 세션 코드값 code 를 이용해서 AC
     }
     reponse = requests.request("POST", url, data=payload, headers=headers)
     access_token = json.loads(((reponse.text).encode('utf-8')))
+    return access_token
+
+##kakao profile-list##
+
+
+def kakaoprofile(accessToken):
+    url = "https://kapi.kakao.com/v2/user/me"
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        'Authorization': "Bearer " + accessToken,
+    }
+    response = requests.request("GET", url, headers=headers)
+    access_token = json.loads(((response.text).encode('utf-8')))
+
+    doc = {
+        'user_id': response.get('kakao_account.id'),
+        'email': response.get('kakao_account.email'),
+    }
+    db.ladder.insert_one(doc)
+
     return access_token
 
 
