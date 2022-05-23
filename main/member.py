@@ -200,13 +200,39 @@ def get_user_info(user):
 ########################################################################
 
 
-@app.route('/oauth',  methods=["GET"])
+@blueprint.route('/oauth',  methods=["GET"])
 def oauth():
     code = str(request.args.get('code'))
     # XXXXXXXXX 자리에 RESET API KEY값을 사용
     resToken = getAccessToken("0e70ecca261b084cdb1cb36a41645ec2", str(code))
-    profile = kakaoprofile(
-        "Jp1WYstBEgIxUKv_4a4t5uX-OpzWGXp8x9E1Mf9eCj11GQAAAYDvK8jK")
+    print(resToken)
+    profile = kakaoprofile(resToken['access_token'])
+
+    # print(profile['kakao_account']['email'])
+    # print(profile['id'])
+
+    email = profile['kakao_account']['email']
+    id = profile['id']
+
+    user = db.member.find_one({'email': email})
+
+    if user is None:
+        db.member.insert_one({'email': email, 'id': id})
+
+    result = db.member.find_one({
+        "email": email,
+        "id": id,
+    })
+    if result is None:
+        return jsonify({'message': 'fail'}), 401
+    payload = {
+        'id': str(result['_id']),
+        'exp': datetime.utcnow() + timedelta(seconds=60 * 60 * 24)  # 토큰 시간 적용
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+
+    return jsonify({'message': 'success', 'token': token})
+
     return jsonify({'message': 'code=' + str(code) + '<br/>response for token=' + str(resToken) + '<br/>profile=' + str(profile)})
 
 
@@ -234,12 +260,6 @@ def kakaoprofile(accessToken):
     }
     response = requests.request("GET", url, headers=headers)
     access_token = json.loads(((response.text).encode('utf-8')))
-
-    doc = {
-        'user_id': response.get('kakao_account.id'),
-        'email': response.get('kakao_account.email'),
-    }
-    db.ladder.insert_one(doc)
 
     return access_token
 
