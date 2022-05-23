@@ -188,7 +188,6 @@ def get_user_info(user):
 
     # print(result)
 
-
     return jsonify({'message': 'success', 'email': result['email']})
 
 
@@ -209,8 +208,8 @@ def oauth():
     print(resToken)
     profile = kakaoprofile(resToken['access_token'])
 
-    # print(profile['kakao_account']['email'])
-    # print(profile['id'])
+    print(profile['kakao_account']['email'])
+    print(profile['id'])
 
     email = profile['kakao_account']['email']
     id = profile['id']
@@ -234,7 +233,7 @@ def oauth():
 
     return jsonify({'message': 'success', 'token': token})
 
-    return jsonify({'message': 'code=' + str(code) + '<br/>response for token=' + str(resToken) + '<br/>profile=' + str(profile)})
+    # return jsonify({'message': 'code=' + str(code) + '<br/>response for token=' + str(resToken) + '<br/>profile=' + str(profile)})
 
 
 def getAccessToken(clientId, code):  # 세션 코드값 code 를 이용해서 ACESS TOKEN과 REFRESH TOKEN을 발급 받음
