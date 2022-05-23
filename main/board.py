@@ -18,7 +18,7 @@ blueprint = Blueprint("board", __name__, url_prefix='')
 
 def authorize(f):
     @wraps(f)
-    def decorated_function():
+    def decorated_function(*args, **kwargs):
         if not 'Authorization' in request.headers:  # headers 에서 Authorization 인증을 하고
             abort(401)  # Authorization 으로 토큰이 오지 않았다면 에러 401
         # Authorization 이 headers에 있다면 token 값을 꺼내온다.
@@ -28,7 +28,7 @@ def authorize(f):
                               'HS256'])  # 꺼내온 token 값을 디코딩해서 꺼내주고
         except:
             abort(401)  # 디코딩이 안될 경우 에러 401
-        return f(user)
+        return f(user, *args, **kwargs)
     return decorated_function
 
 
@@ -83,10 +83,11 @@ def get_result(filename):
 
 # 결과 데이터 삭제하기
 @blueprint.route('/result/<result_id>', methods=['DELETE'])
-def delete_result(result_id):
-    result = db.results.find_one({"_id": ObjectId(result_id)})
+@authorize
+def delete_result(user, result_id):
+    result = db.results.find_one({"_id": ObjectId(result_id), "user_id": user['id']})
     result_img_name = result['result_img_name']
-    os.remove(f'./static/img/result/{result_img_name}')  # 저장된 결과 이미지 파일 삭제
+    os.remove(f'main/static/img/result/{result_img_name}')  # 저장된 결과 이미지 파일 삭제
 
     result_del = db.results.delete_one(
         {"_id": ObjectId(result_id)})  # 저장된 결과 데이터 삭제
