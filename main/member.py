@@ -1,23 +1,38 @@
-from datetime import datetime, timedelta
-from email import message
-from functools import wraps
-import hashlib
-import json
-from unittest import result
-from urllib import response
-from bson import ObjectId
-from flask import Flask, abort, jsonify, request, Response
-from flask_cors import CORS  # flask 연결
-from pymongo import MongoClient  # DB
-import jwt
+from . import config
+from flask import Blueprint
+from main import *
 import requests
+import jwt
+from pymongo import MongoClient  # DB
+from flask_cors import CORS  # flask 연결
+from flask import Flask, abort, jsonify, request, Response
+from bson import ObjectId
+from urllib import response
+from unittest import result
+import json
+import hashlib
+from functools import wraps
+from email import message
+from datetime import datetime, timedelta
 
-SECRET_KEY = 'ladder'
+########################################################################
+########################################################################
+# 회원가입, 로그인
+########################################################################
+########################################################################
 
-app = Flask(__name__)
-cors = CORS(app, resources={r"*": {"origins": "*"}})
-client = MongoClient('localhost', 27017)
-db = client.ladder
+
+# DB 호출
+# from werkzeug.local import LocalProxy
+# db = LocalProxy(get_db)
+
+
+db = config.get_db()
+SECRET_KEY = config.get_key()
+
+
+blueprint = Blueprint("member", __name__, url_prefix='')
+
 
 ########################################################################
 ########################################################################
@@ -28,20 +43,20 @@ db = client.ladder
 ########################################################################
 
 
-def authorize(f):
-    @wraps(f)
-    def decorated_function():
-        if not 'Authorization' in request.headers:  # headers 에서 Authorization 인증을 하고
-            abort(401)  # Authorization 으로 토큰이 오지 않았다면 에러 401
-        # Authorization 이 headers에 있다면 token 값을 꺼내온다.
-        token = request.headers['Authorization']
-        try:
-            user = jwt.decode(token, SECRET_KEY, algorithms=[
-                              'HS256'])  # 꺼내온 token 값을 디코딩해서 꺼내주고
-        except:
-            abort(401)  # 디코딩이 안될 경우 에러 401
-        return f(user)
-    return decorated_function
+# def authorize(f):
+#     @wraps(f)
+#     def decorated_function():
+#         if not 'Authorization' in request.headers:  # headers 에서 Authorization 인증을 하고
+#             abort(401)  # Authorization 으로 토큰이 오지 않았다면 에러 401
+#         # Authorization 이 headers에 있다면 token 값을 꺼내온다.
+#         token = request.headers['Authorization']
+#         try:
+#             user = jwt.decode(token, SECRET_KEY, algorithms=[
+#                               'HS256'])  # 꺼내온 token 값을 디코딩해서 꺼내주고
+#         except:
+#             abort(401)  # 디코딩이 안될 경우 에러 401
+#         return f(user)
+#     return decorated_function
 
 
 ########################################################################
@@ -51,11 +66,11 @@ def authorize(f):
 ########################################################################
 ########################################################################
 ########################################################################
-@app.route('/')
-@authorize  # decorated 함수 적용
-def index(user):
-    # print(user)
-    return jsonify({'message': 'success'})
+# @blueprint.route('/')
+# @authorize  # decorated 함수 적용
+# def index(user):
+#     # print(user)
+#     return jsonify({'message': 'success'})
 
 
 ########################################################################
@@ -65,7 +80,7 @@ def index(user):
 ########################################################################
 ########################################################################
 ########################################################################
-@app.route("/signup", methods=["POST"])
+@blueprint.route("/signup", methods=["POST"])
 def signup():
     data = json.loads(request.data)
 
@@ -94,10 +109,10 @@ def signup():
             sign_error = 774
             return jsonify({'message': 'fail', 'sign_error': sign_error})
             # 중복 처리
-        elif db.ladder.find_one({'user_id': user_id_receive}):
+        elif db.member.find_one({'user_id': user_id_receive}):
             sign_error = 775
             return jsonify({'message': 'fail', 'sign_error': sign_error})
-        elif db.ladder.find_one({'email': email_receive}):
+        elif db.member.find_one({'email': email_receive}):
             sign_error = 776
             return jsonify({'message': 'fail', 'sign_error': sign_error})
     except:
@@ -114,7 +129,7 @@ def signup():
         'user_age': data.get('user_age'),
     }
 
-    db.ladder.insert_one(doc)
+    db.member.insert_one(doc)
 
     return jsonify({'message': 'success'})
 
@@ -126,7 +141,7 @@ def signup():
 ########################################################################
 ########################################################################
 ########################################################################
-@app.route("/login", methods=["POST"])
+@blueprint.route("/login", methods=["POST"])
 def login():
     data = json.loads(request.data)
     # print(data)
@@ -137,7 +152,7 @@ def login():
     # print(hashed_pw)
 
     # 아이디 비밀번호 검사
-    result = db.ladder.find_one({
+    result = db.member.find_one({
         "user_id": user_id,
         "password": hashed_pw,
     })
@@ -149,10 +164,10 @@ def login():
     # 토큰 정의
     payload = {
         'id': str(result['_id']),
-        'exp': datetime.utcnow() + timedelta(seconds=60 * 60 * 24)  # 토큰 시간 적용
+        'exp': datetime.datetime.utcnow() + timedelta(seconds=60 * 60 * 24)  # 토큰 시간 적용
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
-    print(token)
+    # print(token)
 
     return jsonify({'message': 'success', 'token': token})
 
@@ -164,16 +179,17 @@ def login():
 ########################################################################
 ########################################################################
 ########################################################################
-@app.route("/getuserinfo", methods=["GET"])
-@authorize
+@blueprint.route("/getuserinfo", methods=["GET"])
+@config.authorize
 def get_user_info(user):
-    result = db.ladder.find_one({
+    result = db.member.find_one({
         '_id': ObjectId(user['id'])
     })
 
-    print(result)
+    # print(result)
 
     return jsonify({'message': 'success', 'email': result['email']})
+
 
 ########################################################################
 ########################################################################
