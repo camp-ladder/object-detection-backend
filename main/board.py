@@ -70,24 +70,29 @@ blueprint = Blueprint("board", __name__, url_prefix='')
 #         return jsonify({'msg': '저장되었습니다.', "result": result})
 
 
-# 결과 데이터 보내기(사용 안 함)
-@blueprint.route('/result/<filename>', methods=['GET'])
-def get_result(filename):
-    result = db.results.find_one({"img_name": filename})
-    print(result)
-    if result:
-        result["_id"] = str(result["_id"])
-        return jsonify({"message": "success", "result": result})
-    else:
-        return jsonify({"message": "fail"}), 404
+# # 결과 데이터 보내기(사용 안 함)
+# @blueprint.route('/result/<filename>', methods=['GET'])
+# def get_result(filename):
+#     result = db.results.find_one({"img_name": filename})
+#     print(result)
+#     if result:
+#         result["_id"] = str(result["_id"])
+#         return jsonify({"message": "success", "result": result})
+#     else:
+#         return jsonify({"message": "fail"}), 404
 
 
 # 결과 데이터 삭제하기
 @blueprint.route('/result/<result_id>', methods=['DELETE'])
-def delete_result(result_id):
-    result = db.results.find_one({"_id": ObjectId(result_id)})
-    result_img_name = result['result_img_name']
-    os.remove(f'./static/img/result/{result_img_name}')  # 저장된 결과 이미지 파일 삭제
+@config.authorize
+def delete_result(user, result_id):
+    result = db.results.find_one(
+        {"_id": ObjectId(result_id), "user_id": user['id']})
+    result_img_name = result['result_title']
+    os.remove(f'main/{result_img_name}')  # result 이미지 삭제
+
+    original_img_name = result['original_title']
+    os.remove(f'main/{original_img_name}')  # original 이미지 삭제
 
     result_del = db.results.delete_one(
         {"_id": ObjectId(result_id)})  # 저장된 결과 데이터 삭제
@@ -102,31 +107,34 @@ def delete_result(result_id):
 @blueprint.route('/post', methods=['POST'])
 @config.authorize
 def post_file(user):
-    # if user is not None:
-    files = request.files.to_dict()  # ImmutableMultiDict을 객체로 변환
-    for file in files.values():
-        current_time = datetime.datetime.now()  # 현재 시간
-        ext = file.filename.split('.')[-1]  # 이미지 확장자 추출
-        # 이미지 이름 설정
-        filename = f"{current_time.strftime('%Y%m%d%H%M%S')}.{ext}"
+    # # if user is not None:
+    # files = request.files.to_dict()  # ImmutableMultiDict을 객체로 변환
+    # for file in files.values():
+    #     current_time = datetime.datetime.now()  # 현재 시간
+    #     ext = file.filename.split('.')[-1]  # 이미지 확장자 추출
+    #     # 이미지 이름 설정
+    #     filename = f"{current_time.strftime('%Y%m%d%H%M%S')}.{ext}"
 
-        save_to = f'main/static/img/original/{filename}'  # 경로지정
-        file.save(save_to)  # 이미지 파일 저장
+    #     save_to = f'main/static/img/original/{filename}'  # 경로지정
+    #     file.save(save_to)  # 이미지 파일 저장
 
-        result_id = request.form['result_id']
-        input_age = int(request.form['input_age'])
+    result_id = request.form['result_id']
+    result = db.results.find_one({"_id": ObjectId(result_id)})
 
-        doc = {
-            'user_id': user['id'],
-            # 'user_nick_name': user_nick_name,
-            'result_id': result_id,
-            'img_name': filename,
-            'input_age': input_age,
-            # 'timestamp': datetime.utcnow()
-        }
-    db.posts.insert_one(doc)  # posts DB에 저장
+    original_id = result['original_title']
 
-    post = db.posts.find_one({"result_id": result_id})  # posts DB의 ObjectId 찾기
+    doc = {
+        'user_id': user['id'],
+        # 'user_nick_name': user_nick_name,
+        'result_id': result_id,
+        'img_name': original_id,
+        # 'input_age': input_age,
+        # 'timestamp': datetime.utcnow()
+    }
+    db.originals.insert_one(doc)  # posts DB에 저장
+
+    post = db.originals.find_one(
+        {"result_id": result_id})  # posts DB의 ObjectId 찾기
     post_id = str(post["_id"])
 
     db.results.update_one({"_id": ObjectId(result_id)}, {  # result DB에 post_id 저장

@@ -122,11 +122,11 @@ def calculator(user):
         extension = file.filename.split('.')[-1]  # 이미지 확장자 추출
         filename = f"{current_time.strftime('%Y%m%d%H%M%S')}"
 
-        print(user)
-        save_to = f'static/img/result/{filename}.{extension}'  # 경로지정
+        # print(user)
+        save_to = f'static/img/original/{filename}.{extension}'  # 경로지정
         file.save('main/' + save_to)  # 이미지 파일 저장
 
-    print(filename)
+    # print(filename)
 
     # # MongoDB 저장 만들어야함
     # doc = {
